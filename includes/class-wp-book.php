@@ -163,8 +163,9 @@ class Wp_Book
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
 		$this->loader->add_action('init', $this, 'book_register_post_type');
 		$this->loader->add_action('init', $this, 'book_register_taxonomies');
-		$this->loader->add_action('add_meta_boxes',$this,'book_add_meta_box');
-		$this->loader->add_action('save_post',$this,'book_save_meta_box');
+		$this->loader->add_action('add_meta_boxes', $this, 'book_add_meta_box');
+		$this->loader->add_action('save_post', $this, 'book_save_meta_box');
+		
 	}
 
 	/**
@@ -265,10 +266,10 @@ class Wp_Book
 		add_meta_box(
 			'book_meta_box',
 			__('Book Details', 'wp-book'),
-			[$this,'book_meta_box_callback'],
+			[$this, 'book_meta_box_callback'],
 			'book',
 			'normal',
-			'high',
+			'high'
 		);
 	}
 
@@ -348,3 +349,20 @@ class Wp_Book
 		}
 	}
 }
+function book_create_meta_table()
+{
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'book_meta'; // Fixed table name (use underscores).
+	$charset_collate = $wpdb->get_charset_collate();
+
+	$sql = "CREATE TABLE $table_name (
+        id BIGINT(20) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        book_id BIGINT(20) UNSIGNED NOT NULL,
+        meta_key VARCHAR(255) NOT NULL,
+        meta_value LONGTEXT NOT NULL
+    ) $charset_collate;";
+
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php'; // Correct the include statement.
+	dbDelta($sql);
+}
+register_activation_hook(__FILE__, 'book_create_meta_table');
