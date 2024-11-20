@@ -161,12 +161,19 @@ class Wp_Book
 
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_styles');
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
-		$this->loader->add_action('init', $this, 'book_register_post_type');
-		$this->loader->add_action('init', $this, 'book_register_taxonomies');
+		$this->loader->add_action('init', $this, 'book_init');
 		$this->loader->add_action('add_meta_boxes', $this, 'book_add_meta_box');
 		$this->loader->add_action('save_post', $this, 'book_save_meta_box');
-		
+		$this->loader->add_action('admin_menu', $this, 'add_settings_page');
+		$this->loader->add_action('admin_init', $this, 'register_settings');
+
 	}
+	public function book_init()
+	{
+		$this->book_register_post_type();
+		$this->book_register_taxonomies();
+	}
+
 
 	/**
 	 * Register all of the hooks related to the public-facing functionality
@@ -348,11 +355,95 @@ class Wp_Book
 			}
 		}
 	}
+
+	public function add_settings_page()
+	{
+		add_options_page(
+			__('Book Settings', 'wp-book'),
+			__('Book Settings', 'wp-book'),
+			'manage_options',
+			'wp-book-settings',
+			[$this, 'render_settings_page']
+		);
+	}
+
+	public function render_settings_page()
+	{
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e('Book Settings', 'wp-book'); ?></h1>
+			<form method="post" action="options.php">
+				<?php
+				settings_fields('wp_book_settings_group');
+				do_settings_sections('wp-book-settings');
+				submit_button();
+				?>
+			</form>
+		</div>
+		<?php
+	}
+	public function register_settings()
+	{
+		register_setting('wp_book_settings_group', 'wp_book_currency', [
+			'type' => 'string',
+			'description' => __('Currency for book prices', 'wp-book'),
+			'sanitize_callback' => 'sanitize_text_field',
+			'default' => 'USD',
+		]);
+
+		register_setting('wp_book_settings_group', 'wp_book_books_per_page', [
+			'type' => 'integer',
+			'description' => __('Number of books displayed per page', 'wp-book'),
+			'sanitize_callback' => 'intval',
+			'default' => 10,
+		]);
+
+		add_settings_section(
+			'wp_book_general_settings',
+			__('General Settings', 'wp-book'),
+			null,
+			'wp-book-settings'
+		);
+
+		add_settings_field(
+			'wp_book_currency',
+			__('Currency', 'wp-book'),
+			[$this, 'render_currency_field'],
+			'wp-book-settings',
+			'wp_book_general_settings'
+		);
+
+		add_settings_field(
+			'wp_book_books_per_page',
+			__('Books Per Page', 'wp-book'),
+			[$this, 'render_books_per_page_field'],
+			'wp-book-settings',
+			'wp_book_general_settings'
+		);
+	}
+
+	public function render_currency_field()
+	{
+		$value = get_option('wp_book_currency', 'USD');
+		?>
+		<input type="text" name="wp_book_currency" value="<?php echo esc_attr($value); ?>" class="regular-text">
+		<p class="description"><?php esc_html_e('Enter the currency for book prices (e.g., USD, EUR).', 'wp-book'); ?></p>
+		<?php
+	}
+
+	public function render_books_per_page_field()
+	{
+		$value = get_option('wp_book_books_per_page', 10);
+		?>
+		<input type="number" name="wp_book_books_per_page" value="<?php echo esc_attr($value); ?>" min="1" class="small-text">
+		<p class="description"><?php esc_html_e('Enter the number of books to display per page.', 'wp-book'); ?></p>
+		<?php
+	}
 }
 function book_create_meta_table()
 {
 	global $wpdb;
-	$table_name = $wpdb->prefix . 'book_meta'; // Fixed table name (use underscores).
+	$table_name = $wpdb->prefix . 'book_meta';
 	$charset_collate = $wpdb->get_charset_collate();
 
 	$sql = "CREATE TABLE $table_name (
@@ -362,7 +453,13 @@ function book_create_meta_table()
         meta_value LONGTEXT NOT NULL
     ) $charset_collate;";
 
-	require_once ABSPATH . 'wp-admin/includes/upgrade.php'; // Correct the include statement.
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 	dbDelta($sql);
+
+	// Verify if the table exists after creation
+	if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+		error_log("Error: The $table_name table could not be created.");
+	}
 }
+
 register_activation_hook(__FILE__, 'book_create_meta_table');
