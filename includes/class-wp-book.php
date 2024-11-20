@@ -162,6 +162,7 @@ class Wp_Book
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_styles');
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
 		$this->loader->add_action('init', $this, 'book_register_post_type');
+		$this->loader->add_action('init',$this,'book_register_taxonomies');
 	}
 
 	/**
@@ -234,6 +235,25 @@ class Wp_Book
 			'public' => true,
 			'has_archive' => true,
 			'supports' => ['title', 'editor', 'thumbnail'],
+		));
+	}
+	function book_register_taxonomies(){
+		register_taxonomy( 'book_category', 'book', array(
+			'labels' => array(
+				'name' => __('Book Categories','wp-book'),
+				'singular_name' => __('Book Category', 'wp-book'),
+			),
+			'hierarchical' => true,
+			'public' => true,
+		));
+
+		register_taxonomy( 'book_tag', 'book', array(
+			'labels' => array(
+				'name' => __('Book tags', 'wp-book'),
+				'singular_name' => __('Book Tag','wp-book'),
+			),
+			'hierarchical' => false,
+			'public' => true,
 		));
 	}
 }
