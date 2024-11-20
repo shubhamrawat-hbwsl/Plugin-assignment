@@ -224,7 +224,7 @@ class Wp_Book
 	{
 		return $this->version;
 	}
-	public function book_register_post_type()
+	function book_register_post_type()
 	{
 		register_post_type('book', array(
 			'labels' => array(
