@@ -166,7 +166,6 @@ class Wp_Book
 		$this->loader->add_action('save_post', $this, 'book_save_meta_box');
 		$this->loader->add_action('admin_menu', $this, 'add_settings_page');
 		$this->loader->add_action('admin_init', $this, 'register_settings');
-
 	}
 	public function book_init()
 	{
@@ -439,6 +438,98 @@ class Wp_Book
 		<p class="description"><?php esc_html_e('Enter the number of books to display per page.', 'wp-book'); ?></p>
 		<?php
 	}
+
+	public function book_shortcode($atts)
+	{
+		$atts = shortcode_atts(
+			array(
+				'id' => '',
+				'author_name' => '',
+				'year' => '',
+				'category' => '',
+				'tag' => '',
+				'publisher' => ''
+			),
+			$atts,
+			'book'
+		);
+
+		$args = array(
+			'post_type' => 'book',
+			'post_per_page' => -1
+		);
+
+		if (!empty($atts['id'])) {
+			$args['p'] = $atts['id'];
+		}
+
+		if (!empty($atts['author_name'])) {
+			$args['meta_query'][] = [
+				'key' => 'author_name',
+				'value' => $atts['author_name'],
+				'compare' => 'LIKE'
+			];
+		}
+
+		if (!empty($atts['year'])) {
+			$args['meta_query'][] = [
+				'key' => 'year',
+				'value' => $atts['year'],
+				'compare' => '='
+			];
+		}
+
+		if (!empty($atts['publisher'])) {
+			$args['meta_query'][] = [
+				'key' => 'publisher',
+				'value' => $atts['publisher'],
+				'compare' => 'LIKE'
+			];
+		}
+
+		if (!empty($atts['category'])) {
+			$args['tax_query'][] = [
+				'taxonomy' => 'category',
+				'field' => 'slug',
+				'terms' => $atts['category']
+			];
+		}
+
+		if (!empty($atts['tag'])) {
+			$args['tax_query'][] = [
+				'taxonomy' => 'post_tag',
+				'field' => 'slug',
+				'terms' => $atts['tag']
+			];
+		}
+
+		$query = new WP_Query($args);
+
+		if (!$query->have_posts()) {
+			return '<p>No books found.</p>';
+		}
+
+		$output = '<div class="book-list">';
+		while ($query->have_posts()) {
+			$query->the_post();
+			$author_name = get_post_meta(get_the_ID(), 'author_name', true);
+			$year = get_post_meta(get_the_ID(), 'year', true);
+			$publisher = get_post_meta(get_the_ID(), 'publisher', true);
+
+			$output .= '<div class="book">';
+			$output .= '<h3>' . get_the_title() . '</h3>';
+			$output .= '<p><strong>Author:</strong> ' . esc_html($author_name) . '</p>';
+			$output .= '<p><strong>Year:</strong> ' . esc_html($year) . '</p>';
+			$output .= '<p><strong>Publisher:</strong> ' . esc_html($publisher) . '</p>';
+			$output .= '<p><strong>Category:</strong> ' . esc_html(get_the_category_list(', ')) . '</p>';
+			$output .= '<p><strong>Tags:</strong> ' . esc_html(get_the_tag_list('', ', ')) . '</p>';
+			$output .= '</div>';
+		}
+		$output .= '</div>';
+		wp_reset_postdata();
+
+		return $output;
+	}
 }
 function book_create_meta_table()
 {
@@ -463,3 +554,4 @@ function book_create_meta_table()
 }
 
 register_activation_hook(__FILE__, 'book_create_meta_table');
+add_shortcode( 'book', 'book_shortcode' );
