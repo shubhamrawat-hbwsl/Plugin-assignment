@@ -162,7 +162,9 @@ class Wp_Book
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_styles');
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
 		$this->loader->add_action('init', $this, 'book_register_post_type');
-		$this->loader->add_action('init',$this,'book_register_taxonomies');
+		$this->loader->add_action('init', $this, 'book_register_taxonomies');
+		$this->loader->add_action('add_meta_boxes',$this,'book_add_meta_box');
+		$this->loader->add_action('save_post',$this,'book_save_meta_box');
 	}
 
 	/**
@@ -225,7 +227,7 @@ class Wp_Book
 	{
 		return $this->version;
 	}
-	function book_register_post_type()
+	public function book_register_post_type()
 	{
 		register_post_type('book', array(
 			'labels' => array(
@@ -237,23 +239,112 @@ class Wp_Book
 			'supports' => ['title', 'editor', 'thumbnail'],
 		));
 	}
-	function book_register_taxonomies(){
-		register_taxonomy( 'book_category', 'book', array(
+	public function book_register_taxonomies()
+	{
+		register_taxonomy('book_category', 'book', array(
 			'labels' => array(
-				'name' => __('Book Categories','wp-book'),
+				'name' => __('Book Categories', 'wp-book'),
 				'singular_name' => __('Book Category', 'wp-book'),
 			),
 			'hierarchical' => true,
 			'public' => true,
 		));
 
-		register_taxonomy( 'book_tag', 'book', array(
+		register_taxonomy('book_tag', 'book', array(
 			'labels' => array(
 				'name' => __('Book tags', 'wp-book'),
-				'singular_name' => __('Book Tag','wp-book'),
+				'singular_name' => __('Book Tag', 'wp-book'),
 			),
 			'hierarchical' => false,
 			'public' => true,
 		));
+	}
+
+	public function book_add_meta_box()
+	{
+		add_meta_box(
+			'book_meta_box',
+			__('Book Details', 'wp-book'),
+			[$this,'book_meta_box_callback'],
+			'book',
+			'normal',
+			'high',
+		);
+	}
+
+	public function book_meta_box_callback($post)
+	{
+		wp_nonce_field('book_save_meta_box', 'book_meta_box_nonce');
+		$author_name = get_post_meta($post->ID, '_book_author_name', true);
+		$price = get_post_meta($post->ID, '_book_price', true);
+		$publisher = get_post_meta($post->ID, '_book_publisher', true);
+		$year = get_post_meta($post->ID, '_book_year', true);
+		$edition = get_post_meta($post->ID, '_book_edition', true);
+		$url = get_post_meta($post->ID, '_book_url', true);
+		?>
+		<p>
+			<label for="book_author_name"><?php _e('Author Name:', 'wp-book'); ?></label><br>
+			<input type="text" id="book_author_name" name="book_author_name" value="<?php echo esc_attr($author_name); ?>"
+				class="widefat">
+		</p>
+		<p>
+			<label for="book_price"><?php _e('Price:', 'wp-book'); ?></label><br>
+			<input type="number" id="book_price" name="book_price" value="<?php echo esc_attr($price); ?>" class="widefat"
+				step="0.01">
+		</p>
+		<p>
+			<label for="book_publisher"><?php _e('Publisher:', 'wp-book'); ?></label><br>
+			<input type="text" id="book_publisher" name="book_publisher" value="<?php echo esc_attr($publisher); ?>"
+				class="widefat">
+		</p>
+		<p>
+			<label for="book_year"><?php _e('Year:', 'wp-book'); ?></label><br>
+			<input type="number" id="book_year" name="book_year" value="<?php echo esc_attr($year); ?>" class="widefat"
+				min="1000" max="<?php echo date('Y'); ?>">
+		</p>
+		<p>
+			<label for="book_edition"><?php _e('Edition:', 'wp-book'); ?></label><br>
+			<input type="text" id="book_edition" name="book_edition" value="<?php echo esc_attr($edition); ?>" class="widefat">
+		</p>
+		<p>
+			<label for="book_url"><?php _e('URL:', 'wp-book'); ?></label><br>
+			<input type="url" id="book_url" name="book_url" value="<?php echo esc_attr($url); ?>" class="widefat">
+		</p>
+		<?php
+	}
+
+	public function book_save_meta_box($post_id)
+	{
+		if (!isset($_POST['book_meta_box_nonce']) || !wp_verify_nonce($_POST['book_meta_box_nonce'], 'book_save_meta_box')) {
+			return $post_id;
+		}
+
+		// Prevent auto-saving from interfering
+		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+			return $post_id;
+		}
+
+		// Check the user's permission to edit the post
+		if (!current_user_can('edit_post', $post_id)) {
+			return $post_id;
+		}
+
+		// Sanitize and save the fields
+		$fields = [
+			'_book_author_name' => isset($_POST['book_author_name']) ? sanitize_text_field($_POST['book_author_name']) : '',
+			'_book_price' => isset($_POST['book_price']) ? floatval($_POST['book_price']) : '',
+			'_book_publisher' => isset($_POST['book_publisher']) ? sanitize_text_field($_POST['book_publisher']) : '',
+			'_book_year' => isset($_POST['book_year']) ? intval($_POST['book_year']) : '',
+			'_book_edition' => isset($_POST['book_edition']) ? sanitize_text_field($_POST['book_edition']) : '',
+			'_book_url' => isset($_POST['book_url']) ? esc_url_raw($_POST['book_url']) : '',
+		];
+
+		foreach ($fields as $meta_key => $meta_value) {
+			if (!empty($meta_value)) {
+				update_post_meta($post_id, $meta_key, $meta_value);
+			} else {
+				delete_post_meta($post_id, $meta_key);
+			}
+		}
 	}
 }
