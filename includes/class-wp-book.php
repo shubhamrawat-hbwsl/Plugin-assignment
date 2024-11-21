@@ -576,7 +576,7 @@ class Wp_Book
 		$args = array(
 			'taxonomy' => 'book_category', // Use category taxonomy
 			'orderby' => 'post_count',    // Order categories by post count
-			'order' => 'DESC',     // Descending order (highest count first)
+			'order' => 'ASC',     // Descending order (highest count first)
 			'number' => 5,          // Limit to top 5 categories
 			'hide_empty' => true,       // Exclude categories with no posts
 		);
