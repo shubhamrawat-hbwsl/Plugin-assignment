@@ -171,6 +171,7 @@ class Wp_Book
 	{
 		$this->book_register_post_type();
 		$this->book_register_taxonomies();
+		$this->create_custom_block();
 	}
 
 
@@ -188,7 +189,6 @@ class Wp_Book
 
 		$this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_styles');
 		$this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_scripts');
-
 	}
 
 	/**
@@ -530,6 +530,27 @@ class Wp_Book
 
 		return $output;
 	}
+	function enqueue_block_editor_assets() {
+		wp_enqueue_script(
+			'custom-block-script',
+			plugins_url( 'block.js', __FILE__ ),
+			array( 'wp-blocks', 'wp-element' )
+		);
+	
+		wp_enqueue_style(
+			'custom-block-style',
+			plugins_url( 'block.css', __FILE__ ),
+			array( 'wp-edit-blocks' )
+		);
+	}
+
+	public function create_custom_block(){
+		wp_register_script( 'custom-wp-block', plugin_dir_url( __FILE__ ) . '/block.js',
+		array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-block-editor' ),);		
+		register_block_type('wp-book/custom-wp-block',array(
+			'editor_script' => 'custom-wp-block',
+		));
+	}
 }
 function book_create_meta_table()
 {
@@ -554,4 +575,4 @@ function book_create_meta_table()
 }
 
 register_activation_hook(__FILE__, 'book_create_meta_table');
-add_shortcode( 'book', 'book_shortcode' );
+add_shortcode('book', 'book_shortcode');
