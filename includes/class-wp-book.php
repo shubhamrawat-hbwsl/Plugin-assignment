@@ -166,6 +166,7 @@ class Wp_Book
 		$this->loader->add_action('save_post', $this, 'book_save_meta_box');
 		$this->loader->add_action('admin_menu', $this, 'add_settings_page');
 		$this->loader->add_action('admin_init', $this, 'register_settings');
+		$this->loader->add_action('wp_dashboard_setup', $this,'custom_dashboard_widget');
 	}
 	public function book_init()
 	{
@@ -530,27 +531,72 @@ class Wp_Book
 
 		return $output;
 	}
-	function enqueue_block_editor_assets() {
+	function enqueue_block_editor_assets()
+	{
 		wp_enqueue_script(
 			'custom-block-script',
-			plugins_url( 'block.js', __FILE__ ),
-			array( 'wp-blocks', 'wp-element' )
+			plugins_url('block.js', __FILE__),
+			array('wp-blocks', 'wp-element')
 		);
-	
+
 		wp_enqueue_style(
 			'custom-block-style',
-			plugins_url( 'block.css', __FILE__ ),
-			array( 'wp-edit-blocks' )
+			plugins_url('block.css', __FILE__),
+			array('wp-edit-blocks')
 		);
 	}
 
-	public function create_custom_block(){
-		wp_register_script( 'custom-wp-block', plugin_dir_url( __FILE__ ) . '/block.js',
-		array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-block-editor' ),);		
-		register_block_type('wp-book/custom-wp-block',array(
+	public function create_custom_block()
+	{
+		wp_register_script(
+			'custom-wp-block',
+			plugin_dir_url(__FILE__) . '/block.js',
+			array('wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n', 'wp-block-editor'),
+		);
+		register_block_type('wp-book/custom-wp-block', array(
 			'editor_script' => 'custom-wp-block',
 		));
 	}
+
+	// Hook to add custom widget to the dashboard
+	public function custom_dashboard_widget()
+	{
+		wp_add_dashboard_widget(
+			'custom_book_categories', // Widget ID
+			'Top 5 Book Categories',  // Widget Title
+			[$this,'display_top_book_categories'] // Function to display the widget content
+		);
+	}
+
+
+	// Function to display the top 5 book categories
+	public function display_top_book_categories()
+	{
+		// Query to get book categories and their post count
+		$args = array(
+			'taxonomy' => 'book_category', // Use category taxonomy
+			'orderby' => 'post_count',    // Order categories by post count
+			'order' => 'DESC',     // Descending order (highest count first)
+			'number' => 5,          // Limit to top 5 categories
+			'hide_empty' => true,       // Exclude categories with no posts
+		);
+
+		// Get the categories
+		$categories = get_terms($args);
+
+		// Check if there are categories available
+		if (!empty($categories) && !is_wp_error($categories)) {
+			echo '<ul>';
+			foreach ($categories as $category) {
+				// Display the category name and post count
+				echo '<li>' . esc_html($category->name) . ' (' . $category->count . ' posts)</li>';
+			}
+			echo '</ul>';
+		} else {
+			echo 'No categories found.';
+		}
+	}
+
 }
 function book_create_meta_table()
 {
